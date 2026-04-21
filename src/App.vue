@@ -36,11 +36,13 @@ const currentUser = ref(null)
 const editForm = reactive({
   name: '',
   address: '',
+  horario: '',
 })
 
 const createForm = reactive({
   name: '',
   address: '',
+  horario: '',
 })
 
 const loginForm = reactive({
@@ -60,6 +62,7 @@ const isAdmin = computed(() => !!currentUser.value)
 function fillEditForm(iglesia) {
   editForm.name = iglesia?.name ?? ''
   editForm.address = iglesia?.address ?? ''
+  editForm.horario = iglesia?.horario ?? ''
 }
 
 function selectChurch(iglesia) {
@@ -72,6 +75,7 @@ function selectChurch(iglesia) {
 function resetCreateForm() {
   createForm.name = ''
   createForm.address = ''
+  createForm.horario = ''
 }
 
 function openAdminPanel() {
@@ -160,9 +164,10 @@ async function saveChurch() {
 
   const name = editForm.name.trim()
   const address = editForm.address.trim()
+  const horario = editForm.horario.trim()
 
-  if (!name || !address) {
-    errorMessage.value = 'Name y address son obligatorios.'
+  if (!name || !address || !horario) {
+    errorMessage.value = 'Name, address y horario son obligatorios.'
     return
   }
 
@@ -174,6 +179,7 @@ async function saveChurch() {
     await updateDoc(doc(db, 'iglesias', selectedChurch.value.id), {
       name,
       address,
+      horario,
       updatedAt: serverTimestamp(),
     })
     feedback.value = 'Cambios guardados en Firestore.'
@@ -192,9 +198,10 @@ async function createChurch() {
 
   const name = createForm.name.trim()
   const address = createForm.address.trim()
+  const horario = createForm.horario.trim()
 
-  if (!name || !address) {
-    errorMessage.value = 'Completa name y address para crear una iglesia.'
+  if (!name || !address || !horario) {
+    errorMessage.value = 'Completa name, address y horario para crear una iglesia.'
     return
   }
 
@@ -206,6 +213,7 @@ async function createChurch() {
     await addDoc(collection(db, 'iglesias'), {
       name,
       address,
+      horario,
       city: 'Callao',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -337,7 +345,7 @@ onUnmounted(() => {
         </article>
         <article>
           <span class="note-label">Campos editables</span>
-          <strong>name, address</strong>
+          <strong>name, address, horario</strong>
         </article>
         <article>
           <span class="note-label">Sincronización</span>
@@ -437,6 +445,10 @@ onUnmounted(() => {
             <p class="detail-copy">{{ selectedChurch.address || 'Sin dirección registrada' }}</p>
           </div>
           <div>
+            <span class="detail-label">Horario</span>
+            <p class="detail-copy">{{ selectedChurch.horario || 'Sin horario registrado' }}</p>
+          </div>
+          <div>
             <span class="detail-label">Ciudad</span>
             <p class="detail-copy">{{ selectedChurch.city || 'Callao' }}</p>
           </div>
@@ -470,6 +482,11 @@ onUnmounted(() => {
               rows="4"
               placeholder="Av. Sáenz Peña 250, Callao"
             ></textarea>
+          </label>
+
+          <label>
+            <span>Horario</span>
+            <input v-model="editForm.horario" type="text" placeholder="Lun a Vie 7:00 pm - 8:00 pm" />
           </label>
 
           <p class="status" v-if="selectedChurch">
@@ -514,6 +531,11 @@ onUnmounted(() => {
               rows="4"
               placeholder="Jr. Constitución 120, Callao"
             ></textarea>
+          </label>
+
+          <label>
+            <span>Horario</span>
+            <input v-model="createForm.horario" type="text" placeholder="Domingos 8:00 am y 6:00 pm" />
           </label>
 
           <button class="secondary-button" type="submit" :disabled="creating">
