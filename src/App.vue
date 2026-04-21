@@ -57,6 +57,15 @@ const googleProvider = auth ? new GoogleAuthProvider() : null
 const selectedChurch = computed(() =>
   iglesias.value.find((iglesia) => iglesia.id === selectedId.value) ?? null,
 )
+const selectedChurchMapUrl = computed(() => {
+  const address = selectedChurch.value?.address?.trim()
+
+  if (!address) {
+    return ''
+  }
+
+  return `https://www.google.com/maps?q=${encodeURIComponent(address)}&z=16&output=embed`
+})
 const isAdmin = computed(() => !!currentUser.value)
 
 function fillEditForm(iglesia) {
@@ -472,6 +481,26 @@ onUnmounted(() => {
           <div>
             <span class="detail-label">Dirección</span>
             <p class="detail-copy">{{ selectedChurch.address || 'Sin dirección registrada' }}</p>
+          </div>
+          <div v-if="selectedChurchMapUrl" class="map-card">
+            <div class="map-card-header">
+              <span class="detail-label">Mapa GPS</span>
+              <a
+                class="map-link"
+                :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedChurch.address || '')}`"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Abrir en Google Maps
+              </a>
+            </div>
+            <iframe
+              class="church-map"
+              :src="selectedChurchMapUrl"
+              :title="`Mapa de ${selectedChurch.name || 'la iglesia'}`"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+            ></iframe>
           </div>
           <div>
             <span class="detail-label">Horario</span>
