@@ -352,25 +352,10 @@ onUnmounted(() => {
         </div>
       </div>
       <p class="lead">
-        Un directorio visual para presentar iglesias del Callao. Tus clientes ven la información
+        Un directorio visual para presentar iglesias del Callao. Tus hermanos ven la información
         publicada y el acceso <strong>Admin</strong> permite actualizar nombre, dirección y horario
-        directamente en Firestore.
+        directamente.
       </p>
-
-      <div class="hero-notes">
-        <article>
-          <span class="note-label">Colección</span>
-          <strong>iglesias</strong>
-        </article>
-        <article>
-          <span class="note-label">Campos editables</span>
-          <strong>name, address, horario</strong>
-        </article>
-        <article>
-          <span class="note-label">Sincronización</span>
-          <strong>Firestore en tiempo real</strong>
-        </article>
-      </div>
 
       <div v-if="adminPanelOpen && !isAdmin" class="admin-login-card">
         <div class="panel-heading compact">
@@ -469,7 +454,7 @@ onUnmounted(() => {
           <div>
             <p class="panel-kicker">Vista pública</p>
             <h2>{{ selectedChurch?.name || 'Selecciona una iglesia' }}</h2>
-            <p class="panel-subcopy">Así es como se presenta esta iglesia a tus clientes.</p>
+            <p class="panel-subcopy">Así es como se presenta esta iglesia a tu comunidad.</p>
           </div>
         </div>
 
@@ -554,7 +539,7 @@ onUnmounted(() => {
 
           <div class="form-actions">
             <button class="primary-button" type="submit" :disabled="saving || deleting || !selectedChurch">
-              {{ saving ? 'Guardando...' : 'Guardar en Firestore' }}
+              {{ saving ? 'Guardando...' : 'Guardar iglesia' }}
             </button>
 
             <button
@@ -599,7 +584,7 @@ onUnmounted(() => {
           </label>
 
           <button class="secondary-button" type="submit" :disabled="creating">
-            {{ creating ? 'Creando...' : 'Crear documento' }}
+            {{ creating ? 'Creando...' : 'Crear iglesia' }}
           </button>
         </form>
       </section>
