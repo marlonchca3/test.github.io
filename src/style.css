@@ -225,6 +225,13 @@ h2 {
   margin-top: 24px;
 }
 
+.list-panel,
+.details-panel,
+.editor-panel,
+.create-panel {
+  min-width: 0;
+}
+
 .panel {
   padding: 24px;
 }
@@ -293,6 +300,17 @@ h2 {
   border: 0;
   background: transparent;
   text-align: left;
+}
+
+.church-card-main:focus-visible,
+.inline-delete-button:focus-visible,
+.ghost-button:focus-visible,
+.text-button:focus-visible,
+.primary-button:focus-visible,
+.secondary-button:focus-visible,
+.danger-button:focus-visible {
+  outline: 2px solid rgba(10, 123, 131, 0.65);
+  outline-offset: 3px;
 }
 
 .church-card:hover {
@@ -537,10 +555,37 @@ h2 {
   color: var(--text);
 }
 
+@media (max-width: 1180px) {
+  .layout {
+    width: min(100% - 28px, 1040px);
+    padding-top: 28px;
+  }
+
+  .content-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .list-panel {
+    grid-column: 1 / -1;
+  }
+
+  .church-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 960px) {
   .hero-topbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .admin-actions {
+    width: 100%;
+  }
+
+  .admin-actions > * {
+    flex: 1 1 auto;
   }
 
   .layout {
@@ -548,13 +593,113 @@ h2 {
     padding-top: 24px;
   }
 
-  .content-grid,
   .hero-notes {
+    grid-template-columns: 1fr;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .church-list {
     grid-template-columns: 1fr;
   }
 
   .hero-panel,
   .panel {
     padding: 22px;
+  }
+
+  .panel-heading {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pill {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .layout {
+    width: calc(100% - 20px);
+    padding: 16px 0 32px;
+  }
+
+  .hero-panel,
+  .panel,
+  .admin-login-card {
+    padding: 18px;
+  }
+
+  h1 {
+    max-width: none;
+    font-size: clamp(2.15rem, 10vw, 3rem);
+  }
+
+  h2 {
+    font-size: 1.45rem;
+  }
+
+  .lead {
+    font-size: 0.98rem;
+  }
+
+  .hero-tags,
+  .highlight-band {
+    gap: 8px;
+  }
+
+  .hero-tag,
+  .detail-chip {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .church-card {
+    padding: 14px;
+  }
+
+  .inline-delete-button,
+  .primary-button,
+  .secondary-button,
+  .danger-button,
+  .ghost-button {
+    width: 100%;
+  }
+
+  .form-grid input,
+  .form-grid textarea {
+    padding: 13px 14px;
+  }
+}
+
+@media (max-width: 540px) {
+  .hero-panel {
+    border-radius: 22px;
+  }
+
+  .panel,
+  .admin-login-card,
+  .church-card {
+    border-radius: 16px;
+  }
+
+  .eyebrow,
+  .panel-kicker,
+  .note-label,
+  .detail-label,
+  .church-meta b {
+    letter-spacing: 0.12em;
+  }
+
+  .form-actions {
+    gap: 10px;
+  }
+
+  .public-note,
+  .feedback,
+  .presentation-note {
+    padding: 12px 14px;
   }
 }
