@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -28,10 +28,16 @@ const creating = ref(false)
 const deleting = ref(false)
 const authLoading = ref(true)
 const loginLoading = ref(false)
+const locationLoading = ref(false)
+const churchLocationLoading = ref(false)
 const feedback = ref('')
 const errorMessage = ref('')
+const locationError = ref('')
+const churchLocationError = ref('')
 const adminPanelOpen = ref(false)
 const currentUser = ref(null)
+const userLocation = ref(null)
+const churchLocation = ref(null)
 
 const editForm = reactive({
   name: '',
@@ -64,11 +70,110 @@ const selectedChurchMapUrl = computed(() => {
     return ''
   }
 
+  if (userLocation.value) {
+    const { latitude, longitude } = userLocation.value
+
+    return `https://maps.google.com/maps?output=embed&saddr=${latitude},${longitude}&daddr=${encodeURIComponent(address)}`
+  }
+
   return `https://www.google.com/maps?q=${encodeURIComponent(address)}&z=16&output=embed`
 })
 const isAdmin = computed(() => !!currentUser.value)
 const currentUserName = computed(() => currentUser.value?.displayName?.trim() || 'Administrador')
 const currentUserPhoto = computed(() => currentUser.value?.photoURL?.trim() || '')
+const selectedChurchDirectionsUrl = computed(() => {
+  const address = selectedChurch.value?.address?.trim()
+
+  if (!address) {
+    return ''
+  }
+
+  if (userLocation.value) {
+    const { latitude, longitude } = userLocation.value
+
+    return `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${encodeURIComponent(address)}&travelmode=driving`
+  }
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+})
+const userLocationLabel = computed(() => {
+  if (!userLocation.value) {
+    return 'Tu ubicación no está activada todavía.'
+  }
+
+  const { latitude, longitude } = userLocation.value
+  return `Tu ubicación: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+})
+const distanceToChurchKm = computed(() => {
+  if (!userLocation.value || !churchLocation.value) {
+    return ''
+  }
+
+  const distance = calculateDistanceKm(userLocation.value, churchLocation.value)
+  return `${distance.toFixed(1)} km aprox. desde tu ubicación hasta la iglesia.`
+})
+
+function calculateDistanceKm(origin, destination) {
+  const earthRadiusKm = 6371
+  const latDelta = degreesToRadians(destination.latitude - origin.latitude)
+  const lonDelta = degreesToRadians(destination.longitude - origin.longitude)
+  const originLat = degreesToRadians(origin.latitude)
+  const destinationLat = degreesToRadians(destination.latitude)
+
+  const haversineValue =
+    Math.sin(latDelta / 2) * Math.sin(latDelta / 2) +
+    Math.cos(originLat) * Math.cos(destinationLat) * Math.sin(lonDelta / 2) * Math.sin(lonDelta / 2)
+
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(haversineValue), Math.sqrt(1 - haversineValue))
+}
+
+function degreesToRadians(value) {
+  return (value * Math.PI) / 180
+}
+
+async function fetchChurchLocation(address) {
+  if (!address) {
+    churchLocation.value = null
+    churchLocationError.value = ''
+    return
+  }
+
+  churchLocationLoading.value = true
+  churchLocationError.value = ''
+
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(address)}`,
+      {
+        headers: {
+          Accept: 'application/json',
+        },
+      },
+    )
+
+    if (!response.ok) {
+      throw new Error('No se pudo localizar la dirección de la iglesia.')
+    }
+
+    const [result] = await response.json()
+
+    if (!result) {
+      churchLocation.value = null
+      churchLocationError.value = 'No se pudo calcular la distancia para esta dirección.'
+      return
+    }
+
+    churchLocation.value = {
+      latitude: Number(result.lat),
+      longitude: Number(result.lon),
+    }
+  } catch {
+    churchLocation.value = null
+    churchLocationError.value = 'No se pudo calcular la distancia para esta dirección.'
+  } finally {
+    churchLocationLoading.value = false
+  }
+}
 
 function fillEditForm(iglesia) {
   editForm.name = iglesia?.name ?? ''
@@ -82,6 +187,43 @@ function selectChurch(iglesia) {
   feedback.value = ''
   errorMessage.value = ''
 }
+
+function requestUserLocation() {
+  if (!navigator.geolocation) {
+    locationError.value = 'Tu navegador no permite obtener ubicación.'
+    return
+  }
+
+  locationLoading.value = true
+  locationError.value = ''
+
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      userLocation.value = {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      }
+      locationLoading.value = false
+    },
+    () => {
+      locationLoading.value = false
+      locationError.value = 'No se pudo obtener tu ubicación. Revisa los permisos del navegador.'
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 300000,
+    },
+  )
+}
+
+watch(
+  () => selectedChurch.value?.address?.trim() || '',
+  (address) => {
+    fetchChurchLocation(address)
+  },
+  { immediate: true },
+)
 
 function resetCreateForm() {
   createForm.name = ''
@@ -482,19 +624,39 @@ onUnmounted(() => {
           <div v-if="selectedChurchMapUrl" class="map-card">
             <div class="map-card-header">
               <span class="detail-label">Mapa GPS</span>
-              <a
-                class="map-link"
-                :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedChurch.address || '')}`"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Abrir en Google Maps
-              </a>
+              <div class="map-actions">
+                <button
+                  class="map-location-button"
+                  type="button"
+                  :disabled="locationLoading"
+                  @click="requestUserLocation"
+                >
+                  {{ locationLoading ? 'Ubicando...' : 'Usar mi ubicación' }}
+                </button>
+                <a
+                  class="map-link"
+                  :href="selectedChurchDirectionsUrl"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {{ userLocation ? 'Abrir ruta en Google Maps' : 'Abrir en Google Maps' }}
+                </a>
+              </div>
             </div>
+            <p class="map-status" :class="{ error: locationError }">
+              {{ locationError || userLocationLabel }}
+            </p>
+            <p v-if="churchLocationLoading" class="map-status">Calculando distancia aproximada...</p>
+            <p v-else-if="distanceToChurchKm" class="map-status map-distance">
+              {{ distanceToChurchKm }}
+            </p>
+            <p v-else-if="churchLocationError" class="map-status error">
+              {{ churchLocationError }}
+            </p>
             <iframe
               class="church-map"
               :src="selectedChurchMapUrl"
-              :title="`Mapa de ${selectedChurch.name || 'la iglesia'}`"
+              :title="`Mapa de ${selectedChurch.name || 'la iglesia'}${userLocation ? ' con tu ruta' : ''}`"
               loading="lazy"
               referrerpolicy="no-referrer-when-downgrade"
             ></iframe>
