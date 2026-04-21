@@ -8,8 +8,8 @@ App web en Vue 3 + Vite para mostrar iglesias del Callao a tus clientes. El siti
 2. Copia las credenciales de tu proyecto de Firebase Web App.
 3. Asegúrate de que tu colección en Firestore se llame `iglesias`.
 4. Define `VITE_ADMIN_EMAIL` con el correo que usarás para entrar como administrador.
-5. En Firebase Authentication habilita el proveedor `Google`.
-6. Inicia sesión con ese mismo correo de Google para entrar como administrador.
+5. En Firebase Authentication habilita los proveedores `Google` y `Email/Password`.
+6. Entra con el mismo correo admin, ya sea con Google o con correo/contraseña.
 
 ## Variables necesarias
 
@@ -39,7 +39,7 @@ service cloud.firestore {
 }
 ```
 
-Reemplaza `TU_CORREO_ADMIN` por el correo real de tu cuenta de Google administradora.
+Reemplaza `TU_CORREO_ADMIN` por el correo real de tu cuenta administradora.
 
 Si mantienes `allow write: if true;`, cualquier cliente podrá escribir directamente en Firestore aunque el botón de admin esté oculto.
 
