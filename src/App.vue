@@ -10,6 +10,7 @@ import {
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -24,6 +25,7 @@ const selectedId = ref('')
 const loading = ref(true)
 const saving = ref(false)
 const creating = ref(false)
+const deleting = ref(false)
 const authLoading = ref(true)
 const loginLoading = ref(false)
 const feedback = ref('')
@@ -214,6 +216,39 @@ async function createChurch() {
     errorMessage.value = `No se pudo crear: ${error.message}`
   } finally {
     creating.value = false
+  }
+}
+
+async function deleteChurch() {
+  if (!isAdmin.value) {
+    errorMessage.value = 'Solo los usuarios autenticados pueden borrar iglesias.'
+    return
+  }
+
+  if (!selectedChurch.value) {
+    errorMessage.value = 'Selecciona una iglesia antes de borrarla.'
+    return
+  }
+
+  const confirmed = window.confirm(
+    `Vas a borrar "${selectedChurch.value.name || 'esta iglesia'}". Esta acción no se puede deshacer.`,
+  )
+
+  if (!confirmed) {
+    return
+  }
+
+  deleting.value = true
+  errorMessage.value = ''
+  feedback.value = ''
+
+  try {
+    await deleteDoc(doc(db, 'iglesias', selectedChurch.value.id))
+    feedback.value = 'Iglesia eliminada de Firestore.'
+  } catch (error) {
+    errorMessage.value = `No se pudo borrar: ${error.message}`
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -417,7 +452,7 @@ onUnmounted(() => {
         <div class="panel-heading">
           <div>
             <p class="panel-kicker">Edición admin</p>
-            <h2>Actualizar iglesia</h2>
+            <h2>{{ selectedChurch?.name || 'Actualizar iglesia' }}</h2>
           </div>
           <span class="pill secure">Privado</span>
         </div>
@@ -437,9 +472,24 @@ onUnmounted(() => {
             ></textarea>
           </label>
 
-          <button class="primary-button" type="submit" :disabled="saving || !selectedChurch">
-            {{ saving ? 'Guardando...' : 'Guardar en Firestore' }}
-          </button>
+          <p class="status" v-if="selectedChurch">
+            Estás editando la iglesia seleccionada en la columna de registros.
+          </p>
+
+          <div class="form-actions">
+            <button class="primary-button" type="submit" :disabled="saving || deleting || !selectedChurch">
+              {{ saving ? 'Guardando...' : 'Guardar en Firestore' }}
+            </button>
+
+            <button
+              class="danger-button"
+              type="button"
+              :disabled="deleting || saving || !selectedChurch"
+              @click="deleteChurch"
+            >
+              {{ deleting ? 'Borrando...' : 'Borrar iglesia' }}
+            </button>
+          </div>
         </form>
       </section>
 
