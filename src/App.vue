@@ -228,18 +228,24 @@ async function createChurch() {
 }
 
 async function deleteChurch() {
+  await deleteChurchById(selectedChurch.value?.id)
+}
+
+async function deleteChurchById(churchId) {
   if (!isAdmin.value) {
     errorMessage.value = 'Solo los usuarios autenticados pueden borrar iglesias.'
     return
   }
 
-  if (!selectedChurch.value) {
+  const churchToDelete = iglesias.value.find((iglesia) => iglesia.id === churchId) ?? null
+
+  if (!churchToDelete) {
     errorMessage.value = 'Selecciona una iglesia antes de borrarla.'
     return
   }
 
   const confirmed = window.confirm(
-    `Vas a borrar "${selectedChurch.value.name || 'esta iglesia'}". Esta acción no se puede deshacer.`,
+    `Vas a borrar "${churchToDelete.name || 'esta iglesia'}". Esta acción no se puede deshacer.`,
   )
 
   if (!confirmed) {
@@ -251,7 +257,7 @@ async function deleteChurch() {
   feedback.value = ''
 
   try {
-    await deleteDoc(doc(db, 'iglesias', selectedChurch.value.id))
+    await deleteDoc(doc(db, 'iglesias', churchToDelete.id))
     feedback.value = 'Iglesia eliminada de Firestore.'
   } catch (error) {
     errorMessage.value = `No se pudo borrar: ${error.message}`
@@ -414,16 +420,23 @@ onUnmounted(() => {
 
         <ul v-else-if="iglesias.length" class="church-list">
           <li v-for="iglesia in iglesias" :key="iglesia.id">
-            <button
-              class="church-card"
-              :class="{ active: iglesia.id === selectedId }"
-              type="button"
-              @click="selectChurch(iglesia)"
-            >
-              <strong>{{ iglesia.name || 'Sin nombre' }}</strong>
-              <span>{{ iglesia.address || 'Sin dirección' }}</span>
-              <span>{{ iglesia.horario || 'Sin horario' }}</span>
-            </button>
+            <div class="church-card" :class="{ active: iglesia.id === selectedId }">
+              <button class="church-card-main" type="button" @click="selectChurch(iglesia)">
+                <strong>{{ iglesia.name || 'Sin nombre' }}</strong>
+                <span>{{ iglesia.address || 'Sin dirección' }}</span>
+                <span>{{ iglesia.horario || 'Sin horario' }}</span>
+              </button>
+
+              <button
+                v-if="isAdmin"
+                class="inline-delete-button"
+                type="button"
+                :disabled="deleting"
+                @click="deleteChurchById(iglesia.id)"
+              >
+                {{ deleting && iglesia.id === selectedId ? 'Borrando...' : 'Eliminar' }}
+              </button>
+            </div>
           </li>
         </ul>
 
