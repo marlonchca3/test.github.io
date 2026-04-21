@@ -334,11 +334,11 @@ onUnmounted(() => {
     <section class="hero-panel">
       <div class="hero-topbar">
         <div class="hero-copy">
-          <p class="eyebrow">Directorio vivo</p>
-          <h1>Iglesias del Callao</h1>
+          <p class="eyebrow">Directorio vivo 🙏</p>
+          <h1>⛪ Iglesias del Callao</h1>
           <div class="hero-tags">
-            <span class="hero-tag">Callao</span>
-            <span class="hero-tag subtle">Actualización en tiempo real</span>
+            <span class="hero-tag">⛪ Callao</span>
+            <span class="hero-tag subtle">🙏 Actualización en tiempo real</span>
           </div>
         </div>
 
@@ -407,8 +407,8 @@ onUnmounted(() => {
       <aside class="panel list-panel">
         <div class="panel-heading">
           <div>
-            <p class="panel-kicker">Registros</p>
-            <h2>Iglesias disponibles</h2>
+            <p class="panel-kicker">Registros ⛪</p>
+            <h2>⛪ Iglesias disponibles</h2>
             <p class="panel-subcopy">Selecciona una tarjeta para ver su ficha pública.</p>
           </div>
           <span class="pill">{{ iglesias.length }}</span>
@@ -452,7 +452,7 @@ onUnmounted(() => {
       <section class="panel details-panel">
         <div class="panel-heading">
           <div>
-            <p class="panel-kicker">Vista pública</p>
+            <p class="panel-kicker">Vista pública 🙏</p>
             <h2>{{ selectedChurch?.name || 'Selecciona una iglesia' }}</h2>
             <p class="panel-subcopy">Así es como se presenta esta iglesia a tu comunidad.</p>
           </div>
