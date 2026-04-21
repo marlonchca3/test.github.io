@@ -281,6 +281,30 @@ h2 {
   gap: 18px;
 }
 
+.login-divider {
+  position: relative;
+  text-align: center;
+  margin: 4px 0;
+}
+
+.login-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--line);
+}
+
+.login-divider span {
+  position: relative;
+  display: inline-block;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-soft);
+}
+
 .detail-label {
   display: inline-block;
   margin-bottom: 8px;
