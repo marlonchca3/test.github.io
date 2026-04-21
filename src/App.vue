@@ -17,7 +17,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore'
-import { adminEmail, auth, db, hasFirebaseConfig } from './firebase'
+import { auth, db, hasFirebaseConfig } from './firebase'
 
 const iglesias = ref([])
 const selectedId = ref('')
@@ -42,7 +42,7 @@ const createForm = reactive({
 })
 
 const loginForm = reactive({
-  email: adminEmail,
+  email: '',
   password: '',
 })
 
@@ -53,9 +53,7 @@ const googleProvider = auth ? new GoogleAuthProvider() : null
 const selectedChurch = computed(() =>
   iglesias.value.find((iglesia) => iglesia.id === selectedId.value) ?? null,
 )
-const isAdmin = computed(
-  () => !!currentUser.value && !!adminEmail && currentUser.value.email === adminEmail,
-)
+const isAdmin = computed(() => !!currentUser.value)
 
 function fillEditForm(iglesia) {
   editForm.name = iglesia?.name ?? ''
@@ -91,24 +89,12 @@ async function loginWithGoogle() {
     return
   }
 
-  if (!adminEmail) {
-    errorMessage.value = 'Falta definir VITE_ADMIN_EMAIL para validar al administrador.'
-    return
-  }
-
   loginLoading.value = true
   errorMessage.value = ''
   feedback.value = ''
 
   try {
-    const result = await signInWithPopup(auth, googleProvider)
-
-    if (result.user.email !== adminEmail) {
-      await signOut(auth)
-      errorMessage.value = 'Ese correo no tiene permisos de administrador.'
-      return
-    }
-
+    await signInWithPopup(auth, googleProvider)
     adminPanelOpen.value = false
     feedback.value = 'Sesión de administrador iniciada.'
   } catch (error) {
@@ -124,13 +110,8 @@ async function loginWithEmail() {
     return
   }
 
-  if (!adminEmail) {
-    errorMessage.value = 'Falta definir VITE_ADMIN_EMAIL para validar al administrador.'
-    return
-  }
-
   if (!loginForm.email.trim() || !loginForm.password) {
-    errorMessage.value = 'Ingresa el correo admin y su contraseña.'
+    errorMessage.value = 'Ingresa tu correo y contraseña.'
     return
   }
 
@@ -139,17 +120,7 @@ async function loginWithEmail() {
   feedback.value = ''
 
   try {
-    const result = await signInWithEmailAndPassword(
-      auth,
-      loginForm.email.trim(),
-      loginForm.password,
-    )
-
-    if (result.user.email !== adminEmail) {
-      await signOut(auth)
-      errorMessage.value = 'Ese correo no tiene permisos de administrador.'
-      return
-    }
+    await signInWithEmailAndPassword(auth, loginForm.email.trim(), loginForm.password)
 
     loginForm.password = ''
     adminPanelOpen.value = false
@@ -258,14 +229,6 @@ onMounted(() => {
     authLoading.value = false
   } else {
     unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user && adminEmail && user.email !== adminEmail) {
-        signOut(auth)
-        currentUser.value = null
-        authLoading.value = false
-        errorMessage.value = 'Ese correo no tiene permisos de administrador.'
-        return
-      }
-
       currentUser.value = user
       authLoading.value = false
     })
@@ -328,8 +291,8 @@ onUnmounted(() => {
       </div>
       <p class="lead">
         Tus clientes solo verán la información publicada. El botón <strong>Admin</strong> abre el
-        acceso para que solo tú puedas editar <strong>name</strong> y <strong>address</strong> en
-        Firestore.
+        acceso para que las personas autenticadas puedan editar <strong>name</strong> y
+        <strong>address</strong> en Firestore.
       </p>
 
       <div class="hero-notes">
@@ -358,8 +321,8 @@ onUnmounted(() => {
 
         <div class="form-grid">
           <p class="status">
-            Se abrirá el inicio de sesión de Google. Solo el correo
-            <strong>{{ adminEmail || 'configurado como admin' }}</strong> podrá editar.
+            Se abrirá el inicio de sesión de Google. Cualquier usuario autenticado podrá entrar al
+            panel de edición.
           </p>
 
           <button
@@ -377,8 +340,8 @@ onUnmounted(() => {
 
           <form class="form-grid" @submit.prevent="loginWithEmail">
             <label>
-              <span>Correo admin</span>
-              <input v-model="loginForm.email" type="email" placeholder="admin@tuiglesia.com" />
+              <span>Correo</span>
+              <input v-model="loginForm.email" type="email" placeholder="usuario@correo.com" />
             </label>
 
             <label>
@@ -512,7 +475,7 @@ onUnmounted(() => {
 
     <section v-if="!isAdmin" class="public-note">
       <p>
-        El sitio está en modo público. Solo el administrador autenticado puede crear o editar
+        El sitio está en modo público. Solo los usuarios autenticados pueden crear o editar
         iglesias.
       </p>
     </section>
