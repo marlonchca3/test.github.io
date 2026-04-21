@@ -1,8 +1,9 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import {
+  GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
 } from 'firebase/auth'
 import {
@@ -39,13 +40,9 @@ const createForm = reactive({
   address: '',
 })
 
-const loginForm = reactive({
-  email: adminEmail,
-  password: '',
-})
-
 let unsubscribe = null
 let unsubscribeAuth = null
+const googleProvider = auth ? new GoogleAuthProvider() : null
 
 const selectedChurch = computed(() =>
   iglesias.value.find((iglesia) => iglesia.id === selectedId.value) ?? null,
@@ -79,7 +76,6 @@ function openAdminPanel() {
 
 function closeAdminPanel() {
   adminPanelOpen.value = false
-  loginForm.password = ''
 }
 
 async function loginAsAdmin() {
@@ -88,8 +84,8 @@ async function loginAsAdmin() {
     return
   }
 
-  if (!loginForm.email.trim() || !loginForm.password) {
-    errorMessage.value = 'Ingresa tu correo y contraseña de administrador.'
+  if (!adminEmail) {
+    errorMessage.value = 'Falta definir VITE_ADMIN_EMAIL para validar al administrador.'
     return
   }
 
@@ -98,8 +94,14 @@ async function loginAsAdmin() {
   feedback.value = ''
 
   try {
-    await signInWithEmailAndPassword(auth, loginForm.email.trim(), loginForm.password)
-    loginForm.password = ''
+    const result = await signInWithPopup(auth, googleProvider)
+
+    if (result.user.email !== adminEmail) {
+      await signOut(auth)
+      errorMessage.value = 'Ese correo no tiene permisos de administrador.'
+      return
+    }
+
     adminPanelOpen.value = false
     feedback.value = 'Sesión de administrador iniciada.'
   } catch (error) {
@@ -206,6 +208,14 @@ onMounted(() => {
     authLoading.value = false
   } else {
     unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user && adminEmail && user.email !== adminEmail) {
+        signOut(auth)
+        currentUser.value = null
+        authLoading.value = false
+        errorMessage.value = 'Ese correo no tiene permisos de administrador.'
+        return
+      }
+
       currentUser.value = user
       authLoading.value = false
     })
@@ -291,24 +301,18 @@ onUnmounted(() => {
         <div class="panel-heading compact">
           <div>
             <p class="panel-kicker">Acceso privado</p>
-            <h2>Entrar como administrador</h2>
+            <h2>Entrar con Google</h2>
           </div>
           <button class="text-button" type="button" @click="closeAdminPanel">Cerrar</button>
         </div>
 
         <form class="form-grid" @submit.prevent="loginAsAdmin">
-          <label>
-            <span>Correo admin</span>
-            <input v-model="loginForm.email" type="email" placeholder="admin@tuiglesia.com" />
-          </label>
-
-          <label>
-            <span>Contraseña</span>
-            <input v-model="loginForm.password" type="password" placeholder="Tu contraseña" />
-          </label>
-
+          <p class="status">
+            Se abrirá el inicio de sesión de Google. Solo el correo
+            <strong>{{ adminEmail || 'configurado como admin' }}</strong> podrá editar.
+          </p>
           <button class="primary-button" type="submit" :disabled="loginLoading || authLoading">
-            {{ loginLoading ? 'Ingresando...' : 'Entrar' }}
+            {{ loginLoading ? 'Abriendo Google...' : 'Entrar con Google' }}
           </button>
         </form>
       </div>
