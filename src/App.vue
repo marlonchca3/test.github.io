@@ -422,6 +422,7 @@ onUnmounted(() => {
             >
               <strong>{{ iglesia.name || 'Sin nombre' }}</strong>
               <span>{{ iglesia.address || 'Sin dirección' }}</span>
+              <span>{{ iglesia.horario || 'Sin horario' }}</span>
             </button>
           </li>
         </ul>
