@@ -324,9 +324,13 @@ onUnmounted(() => {
   <main class="layout">
     <section class="hero-panel">
       <div class="hero-topbar">
-        <div>
+        <div class="hero-copy">
           <p class="eyebrow">Directorio vivo</p>
           <h1>Iglesias del Callao</h1>
+          <div class="hero-tags">
+            <span class="hero-tag">Callao</span>
+            <span class="hero-tag subtle">Actualización en tiempo real</span>
+          </div>
         </div>
 
         <div class="admin-actions">
@@ -339,9 +343,9 @@ onUnmounted(() => {
         </div>
       </div>
       <p class="lead">
-        Tus clientes solo verán la información publicada. El botón <strong>Admin</strong> abre el
-        acceso para que las personas autenticadas puedan editar <strong>name</strong> y
-        <strong>address</strong> en Firestore.
+        Un directorio visual para presentar iglesias del Callao. Tus clientes ven la información
+        publicada y el acceso <strong>Admin</strong> permite actualizar nombre, dirección y horario
+        directamente en Firestore.
       </p>
 
       <div class="hero-notes">
@@ -370,8 +374,7 @@ onUnmounted(() => {
 
         <div class="form-grid">
           <p class="status">
-            Se abrirá el inicio de sesión de Google. Cualquier usuario autenticado podrá entrar al
-            panel de edición.
+            Ingresa con Google o con correo y contraseña para abrir el panel de gestión.
           </p>
 
           <button
@@ -412,6 +415,7 @@ onUnmounted(() => {
           <div>
             <p class="panel-kicker">Registros</p>
             <h2>Iglesias disponibles</h2>
+            <p class="panel-subcopy">Selecciona una tarjeta para ver su ficha pública.</p>
           </div>
           <span class="pill">{{ iglesias.length }}</span>
         </div>
@@ -423,8 +427,14 @@ onUnmounted(() => {
             <div class="church-card" :class="{ active: iglesia.id === selectedId }">
               <button class="church-card-main" type="button" @click="selectChurch(iglesia)">
                 <strong>{{ iglesia.name || 'Sin nombre' }}</strong>
-                <span>{{ iglesia.address || 'Sin dirección' }}</span>
-                <span>{{ iglesia.horario || 'Sin horario' }}</span>
+                <span class="church-meta">
+                  <b>Dirección</b>
+                  {{ iglesia.address || 'Sin dirección' }}
+                </span>
+                <span class="church-meta">
+                  <b>Horario</b>
+                  {{ iglesia.horario || 'Sin horario' }}
+                </span>
               </button>
 
               <button
@@ -450,10 +460,15 @@ onUnmounted(() => {
           <div>
             <p class="panel-kicker">Vista pública</p>
             <h2>{{ selectedChurch?.name || 'Selecciona una iglesia' }}</h2>
+            <p class="panel-subcopy">Así es como se presenta esta iglesia a tus clientes.</p>
           </div>
         </div>
 
         <div v-if="selectedChurch" class="details-stack">
+          <div class="highlight-band">
+            <span class="detail-chip">Callao</span>
+            <span class="detail-chip">{{ selectedChurch.horario || 'Horario por confirmar' }}</span>
+          </div>
           <div>
             <span class="detail-label">Dirección</span>
             <p class="detail-copy">{{ selectedChurch.address || 'Sin dirección registrada' }}</p>
@@ -466,8 +481,8 @@ onUnmounted(() => {
             <span class="detail-label">Ciudad</span>
             <p class="detail-copy">{{ selectedChurch.city || 'Callao' }}</p>
           </div>
-          <p class="status">
-            Tus clientes verán esta información exactamente como la dejes guardada.
+          <p class="status presentation-note">
+            Presentación pública activa. Cualquier cambio que guardes desde admin se refleja aquí.
           </p>
         </div>
 
@@ -479,6 +494,7 @@ onUnmounted(() => {
           <div>
             <p class="panel-kicker">Edición admin</p>
             <h2>{{ selectedChurch?.name || 'Actualizar iglesia' }}</h2>
+            <p class="panel-subcopy">Modifica la iglesia seleccionada y publica los cambios.</p>
           </div>
           <span class="pill secure">Privado</span>
         </div>
@@ -529,6 +545,7 @@ onUnmounted(() => {
           <div>
             <p class="panel-kicker">Alta admin</p>
             <h2>Nueva iglesia</h2>
+            <p class="panel-subcopy">Agrega una nueva ficha al directorio en segundos.</p>
           </div>
         </div>
 
@@ -561,8 +578,7 @@ onUnmounted(() => {
 
     <section v-if="!isAdmin" class="public-note">
       <p>
-        El sitio está en modo público. Solo los usuarios autenticados pueden crear o editar
-        iglesias.
+        Modo presentación activo. Solo usuarios autenticados pueden crear, editar o borrar.
       </p>
     </section>
 
