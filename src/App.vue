@@ -67,6 +67,8 @@ const selectedChurchMapUrl = computed(() => {
   return `https://www.google.com/maps?q=${encodeURIComponent(address)}&z=16&output=embed`
 })
 const isAdmin = computed(() => !!currentUser.value)
+const currentUserName = computed(() => currentUser.value?.displayName?.trim() || 'Administrador')
+const currentUserPhoto = computed(() => currentUser.value?.photoURL?.trim() || '')
 
 function fillEditForm(iglesia) {
   editForm.name = iglesia?.name ?? ''
@@ -343,6 +345,16 @@ onUnmounted(() => {
         </div>
 
         <div class="admin-actions">
+          <div v-if="isAdmin" class="admin-profile">
+            <img
+              v-if="currentUserPhoto"
+              class="admin-avatar"
+              :src="currentUserPhoto"
+              :alt="`Foto de ${currentUserName}`"
+              referrerpolicy="no-referrer"
+            />
+            <span class="admin-name">{{ currentUserName }}</span>
+          </div>
           <button v-if="!isAdmin" class="ghost-button" type="button" @click="openAdminPanel">
             Admin
           </button>
