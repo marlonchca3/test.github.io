@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import { getAnalytics, isSupported } from 'firebase/analytics'
+import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 const firebaseDefaults = {
@@ -33,6 +34,8 @@ const requiredFirebaseConfig = {
   appId: firebaseConfig.appId,
 }
 
+const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || ''
+
 const hasFirebaseConfig = Object.values(requiredFirebaseConfig).every(Boolean)
 
 const firebaseApp = hasFirebaseConfig
@@ -42,8 +45,9 @@ const firebaseApp = hasFirebaseConfig
   : null
 
 const db = firebaseApp ? getFirestore(firebaseApp) : null
+const auth = firebaseApp ? getAuth(firebaseApp) : null
 const analyticsPromise = firebaseApp
   ? isSupported().then((supported) => (supported ? getAnalytics(firebaseApp) : null))
   : Promise.resolve(null)
 
-export { analyticsPromise, db, hasFirebaseConfig }
+export { adminEmail, analyticsPromise, auth, db, hasFirebaseConfig }

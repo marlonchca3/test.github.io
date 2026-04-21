@@ -1,6 +1,11 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth'
+import {
   addDoc,
   collection,
   doc,
@@ -10,15 +15,19 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore'
-import { db, hasFirebaseConfig } from './firebase'
+import { adminEmail, auth, db, hasFirebaseConfig } from './firebase'
 
 const iglesias = ref([])
 const selectedId = ref('')
 const loading = ref(true)
 const saving = ref(false)
 const creating = ref(false)
+const authLoading = ref(true)
+const loginLoading = ref(false)
 const feedback = ref('')
 const errorMessage = ref('')
+const adminPanelOpen = ref(false)
+const currentUser = ref(null)
 
 const editForm = reactive({
   name: '',
@@ -30,10 +39,19 @@ const createForm = reactive({
   address: '',
 })
 
+const loginForm = reactive({
+  email: adminEmail,
+  password: '',
+})
+
 let unsubscribe = null
+let unsubscribeAuth = null
 
 const selectedChurch = computed(() =>
   iglesias.value.find((iglesia) => iglesia.id === selectedId.value) ?? null,
+)
+const isAdmin = computed(
+  () => !!currentUser.value && !!adminEmail && currentUser.value.email === adminEmail,
 )
 
 function fillEditForm(iglesia) {
@@ -53,7 +71,63 @@ function resetCreateForm() {
   createForm.address = ''
 }
 
+function openAdminPanel() {
+  adminPanelOpen.value = true
+  feedback.value = ''
+  errorMessage.value = ''
+}
+
+function closeAdminPanel() {
+  adminPanelOpen.value = false
+  loginForm.password = ''
+}
+
+async function loginAsAdmin() {
+  if (!auth) {
+    errorMessage.value = 'Firebase Auth no está configurado.'
+    return
+  }
+
+  if (!loginForm.email.trim() || !loginForm.password) {
+    errorMessage.value = 'Ingresa tu correo y contraseña de administrador.'
+    return
+  }
+
+  loginLoading.value = true
+  errorMessage.value = ''
+  feedback.value = ''
+
+  try {
+    await signInWithEmailAndPassword(auth, loginForm.email.trim(), loginForm.password)
+    loginForm.password = ''
+    adminPanelOpen.value = false
+    feedback.value = 'Sesión de administrador iniciada.'
+  } catch (error) {
+    errorMessage.value = `No se pudo iniciar sesión: ${error.message}`
+  } finally {
+    loginLoading.value = false
+  }
+}
+
+async function logoutAdmin() {
+  if (!auth) {
+    return
+  }
+
+  try {
+    await signOut(auth)
+    feedback.value = 'Sesión de administrador cerrada.'
+  } catch (error) {
+    errorMessage.value = `No se pudo cerrar sesión: ${error.message}`
+  }
+}
+
 async function saveChurch() {
+  if (!isAdmin.value) {
+    errorMessage.value = 'Solo el administrador puede guardar cambios.'
+    return
+  }
+
   if (!selectedChurch.value) {
     errorMessage.value = 'Selecciona una iglesia antes de guardar cambios.'
     return
@@ -86,6 +160,11 @@ async function saveChurch() {
 }
 
 async function createChurch() {
+  if (!isAdmin.value) {
+    errorMessage.value = 'Solo el administrador puede crear iglesias.'
+    return
+  }
+
   const name = createForm.name.trim()
   const address = createForm.address.trim()
 
@@ -119,7 +198,17 @@ onMounted(() => {
   if (!hasFirebaseConfig) {
     loading.value = false
     errorMessage.value = 'Falta configurar Firebase en el archivo .env.local.'
+    authLoading.value = false
     return
+  }
+
+  if (!auth) {
+    authLoading.value = false
+  } else {
+    unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      currentUser.value = user
+      authLoading.value = false
+    })
   }
 
   const iglesiasQuery = query(collection(db, 'iglesias'), orderBy('name'))
@@ -155,17 +244,32 @@ onMounted(() => {
 
 onUnmounted(() => {
   unsubscribe?.()
+  unsubscribeAuth?.()
 })
 </script>
 
 <template>
   <main class="layout">
     <section class="hero-panel">
-      <p class="eyebrow">Directorio vivo</p>
-      <h1>Iglesias del Callao</h1>
+      <div class="hero-topbar">
+        <div>
+          <p class="eyebrow">Directorio vivo</p>
+          <h1>Iglesias del Callao</h1>
+        </div>
+
+        <div class="admin-actions">
+          <button v-if="!isAdmin" class="ghost-button" type="button" @click="openAdminPanel">
+            Admin
+          </button>
+          <button v-else class="ghost-button active" type="button" @click="logoutAdmin">
+            Salir admin
+          </button>
+        </div>
+      </div>
       <p class="lead">
-        Edita <strong>name</strong> y <strong>address</strong> desde la app y los cambios se
-        guardan en la colección <strong>iglesias</strong> de Firestore.
+        Tus clientes solo verán la información publicada. El botón <strong>Admin</strong> abre el
+        acceso para que solo tú puedas editar <strong>name</strong> y <strong>address</strong> en
+        Firestore.
       </p>
 
       <div class="hero-notes">
@@ -181,6 +285,32 @@ onUnmounted(() => {
           <span class="note-label">Sincronización</span>
           <strong>Firestore en tiempo real</strong>
         </article>
+      </div>
+
+      <div v-if="adminPanelOpen && !isAdmin" class="admin-login-card">
+        <div class="panel-heading compact">
+          <div>
+            <p class="panel-kicker">Acceso privado</p>
+            <h2>Entrar como administrador</h2>
+          </div>
+          <button class="text-button" type="button" @click="closeAdminPanel">Cerrar</button>
+        </div>
+
+        <form class="form-grid" @submit.prevent="loginAsAdmin">
+          <label>
+            <span>Correo admin</span>
+            <input v-model="loginForm.email" type="email" placeholder="admin@tuiglesia.com" />
+          </label>
+
+          <label>
+            <span>Contraseña</span>
+            <input v-model="loginForm.password" type="password" placeholder="Tu contraseña" />
+          </label>
+
+          <button class="primary-button" type="submit" :disabled="loginLoading || authLoading">
+            {{ loginLoading ? 'Ingresando...' : 'Entrar' }}
+          </button>
+        </form>
       </div>
     </section>
 
@@ -215,12 +345,38 @@ onUnmounted(() => {
         </p>
       </aside>
 
-      <section class="panel editor-panel">
+      <section class="panel details-panel">
         <div class="panel-heading">
           <div>
-            <p class="panel-kicker">Edición</p>
+            <p class="panel-kicker">Vista pública</p>
+            <h2>{{ selectedChurch?.name || 'Selecciona una iglesia' }}</h2>
+          </div>
+        </div>
+
+        <div v-if="selectedChurch" class="details-stack">
+          <div>
+            <span class="detail-label">Dirección</span>
+            <p class="detail-copy">{{ selectedChurch.address || 'Sin dirección registrada' }}</p>
+          </div>
+          <div>
+            <span class="detail-label">Ciudad</span>
+            <p class="detail-copy">{{ selectedChurch.city || 'Callao' }}</p>
+          </div>
+          <p class="status">
+            Tus clientes verán esta información exactamente como la dejes guardada.
+          </p>
+        </div>
+
+        <p v-else class="status">Elige una iglesia para ver sus datos públicos.</p>
+      </section>
+
+      <section v-if="isAdmin" class="panel editor-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Edición admin</p>
             <h2>Actualizar iglesia</h2>
           </div>
+          <span class="pill secure">Privado</span>
         </div>
 
         <form class="form-grid" @submit.prevent="saveChurch">
@@ -244,10 +400,10 @@ onUnmounted(() => {
         </form>
       </section>
 
-      <section class="panel create-panel">
+      <section v-if="isAdmin" class="panel create-panel">
         <div class="panel-heading">
           <div>
-            <p class="panel-kicker">Alta</p>
+            <p class="panel-kicker">Alta admin</p>
             <h2>Nueva iglesia</h2>
           </div>
         </div>
@@ -272,6 +428,13 @@ onUnmounted(() => {
           </button>
         </form>
       </section>
+    </section>
+
+    <section v-if="!isAdmin" class="public-note">
+      <p>
+        El sitio está en modo público. Solo el administrador autenticado puede crear o editar
+        iglesias.
+      </p>
     </section>
 
     <section v-if="feedback || errorMessage || !hasFirebaseConfig" class="feedback-strip">
