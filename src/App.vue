@@ -38,7 +38,6 @@ const adminPanelOpen = ref(false)
 const currentUser = ref(null)
 const userLocation = ref(null)
 const churchLocation = ref(null)
-const searchQuery = ref('')
 
 const editForm = reactive({
   name: '',
@@ -65,31 +64,6 @@ const fallbackAdminEmail = 'admin@iglesias.com'
 const selectedChurch = computed(() =>
   iglesias.value.find((iglesia) => iglesia.id === selectedId.value) ?? null,
 )
-const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase())
-const filteredIglesias = computed(() => {
-  if (!normalizedSearchQuery.value) {
-    return iglesias.value
-  }
-
-  return iglesias.value.filter((iglesia) => {
-    const searchableFields = [iglesia.name, iglesia.address, iglesia.horario, iglesia.city]
-
-    return searchableFields.some((field) => field?.toLowerCase().includes(normalizedSearchQuery.value))
-  })
-})
-const churchesWithAddressCount = computed(() =>
-  iglesias.value.filter((iglesia) => iglesia.address?.trim()).length,
-)
-const churchesWithScheduleCount = computed(() =>
-  iglesias.value.filter((iglesia) => iglesia.horario?.trim()).length,
-)
-const visibleResultsLabel = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return `${filteredIglesias.value.length} iglesias visibles en el directorio.`
-  }
-
-  return `${filteredIglesias.value.length} resultado${filteredIglesias.value.length === 1 ? '' : 's'} para "${searchQuery.value.trim()}".`
-})
 const selectedChurchMapUrl = computed(() => {
   const address = selectedChurch.value?.address?.trim()
 
@@ -282,20 +256,6 @@ watch(
   },
   { immediate: true },
 )
-
-watch(filteredIglesias, (visibleChurches) => {
-  if (!visibleChurches.length) {
-    selectedId.value = ''
-    fillEditForm(null)
-    return
-  }
-
-  const currentSelectionVisible = visibleChurches.some((iglesia) => iglesia.id === selectedId.value)
-
-  if (!currentSelectionVisible) {
-    selectChurch(visibleChurches[0])
-  }
-})
 
 function resetCreateForm() {
   createForm.name = ''
@@ -565,110 +525,46 @@ onUnmounted(() => {
 <template>
   <main class="layout">
     <section class="hero-panel">
-      <div class="hero-grid">
+      <div class="hero-topbar">
         <div class="hero-copy">
-          <p class="eyebrow">Directorio actualizado</p>
-          <h1>Iglesias del Callao, con mejor orientación y acceso.</h1>
-          <p class="lead">
-            Encuentra una iglesia más rápido, revisa dirección y horario con claridad, y usa el mapa
-            para llegar sin fricción. El panel admin mantiene la información al día en tiempo real.
-          </p>
-
+          <p class="eyebrow">Directorio vivo 🙏</p>
+          <h1>⛪ Iglesias del Callao</h1>
           <div class="hero-tags">
-            <span class="hero-tag">Callao</span>
-            <span class="hero-tag subtle">Datos en vivo</span>
-            <span class="hero-tag subtle">Ruta con Google Maps</span>
-          </div>
-
-          <div class="hero-cta-row">
-            <a class="primary-link-button" href="#directorio">Explorar directorio</a>
-            <button class="ghost-button" type="button" @click="requestUserLocation">
-              {{ locationLoading ? 'Ubicando...' : 'Activar mi ubicación' }}
-            </button>
-          </div>
-
-          <div class="hero-notes">
-            <article>
-              <span class="note-label">Descubre</span>
-              <strong>Búsqueda más directa</strong>
-              <p>Filtra por nombre, dirección, horario o ciudad desde el listado principal.</p>
-            </article>
-
-            <article>
-              <span class="note-label">Decide</span>
-              <strong>Información priorizada</strong>
-              <p>Horario, ubicación y acciones clave quedan visibles antes de entrar al panel admin.</p>
-            </article>
-
-            <article>
-              <span class="note-label">Gestiona</span>
-              <strong>Edición más clara</strong>
-              <p>Los administradores editan la ficha activa con menos pasos y mejor contexto.</p>
-            </article>
+            <span class="hero-tag">⛪ Callao</span>
+            <span class="hero-tag subtle">🙏 Actualización en tiempo real</span>
           </div>
         </div>
 
-        <aside class="hero-summary">
-          <div class="hero-summary-head">
-            <div>
-              <p class="panel-kicker">Panorama</p>
-              <h2>Vista rápida del directorio</h2>
-            </div>
-
-            <div class="admin-actions">
-              <div v-if="isAdmin" class="admin-profile">
-                <img
-                  v-if="currentUserPhoto"
-                  class="admin-avatar"
-                  :src="currentUserPhoto"
-                  :alt="`Foto de ${currentUserName}`"
-                  referrerpolicy="no-referrer"
-                />
-                <span class="admin-name">{{ currentUserName }}</span>
-              </div>
-              <button v-if="!isAdmin" class="ghost-button" type="button" @click="openAdminPanel">
-                Admin
-              </button>
-              <button v-else class="ghost-button active" type="button" @click="logoutAdmin">
-                Salir admin
-              </button>
-            </div>
+        <div class="admin-actions">
+          <div v-if="isAdmin" class="admin-profile">
+            <img
+              v-if="currentUserPhoto"
+              class="admin-avatar"
+              :src="currentUserPhoto"
+              :alt="`Foto de ${currentUserName}`"
+              referrerpolicy="no-referrer"
+            />
+            <span class="admin-name">{{ currentUserName }}</span>
           </div>
-
-          <div class="hero-metrics">
-            <article class="metric-card">
-              <span>Total</span>
-              <strong>{{ iglesias.length }}</strong>
-              <p>Iglesias registradas para consulta pública.</p>
-            </article>
-
-            <article class="metric-card">
-              <span>Direcciones</span>
-              <strong>{{ churchesWithAddressCount }}</strong>
-              <p>Fichas listas para abrir en mapa o calcular ruta.</p>
-            </article>
-
-            <article class="metric-card">
-              <span>Horarios</span>
-              <strong>{{ churchesWithScheduleCount }}</strong>
-              <p>Registros con horario visible para decidir rápido.</p>
-            </article>
-          </div>
-
-          <div class="hero-summary-note">
-            <span class="note-label">Estado actual</span>
-            <p>
-              {{ isAdmin ? 'Tienes acceso completo para editar y publicar cambios.' : 'Estás en modo consulta. El contenido visible es público y se actualiza en vivo.' }}
-            </p>
-          </div>
-        </aside>
+          <button v-if="!isAdmin" class="ghost-button" type="button" @click="openAdminPanel">
+            Admin
+          </button>
+          <button v-else class="ghost-button active" type="button" @click="logoutAdmin">
+            Salir admin
+          </button>
+        </div>
       </div>
+      <p class="lead">
+        Un directorio visual para presentar iglesias del Callao. Tus hermanos ven la información
+        publicada y el acceso <strong>Admin</strong> permite actualizar nombre, dirección y horario
+        directamente.
+      </p>
 
       <div v-if="adminPanelOpen && !isAdmin" class="admin-login-card">
         <div class="panel-heading compact">
           <div>
             <p class="panel-kicker">Acceso privado</p>
-            <h2>Entrar al panel admin</h2>
+            <h2>Entrar con Google</h2>
           </div>
           <button class="text-button" type="button" @click="closeAdminPanel">Cerrar</button>
         </div>
@@ -711,41 +607,22 @@ onUnmounted(() => {
     </section>
 
     <section class="content-grid">
-      <aside id="directorio" class="panel list-panel">
+      <aside class="panel list-panel">
         <div class="panel-heading">
           <div>
-            <p class="panel-kicker">Directorio</p>
-            <h2>Iglesias disponibles</h2>
-            <p class="panel-subcopy">Busca y selecciona una ficha para verla con contexto completo.</p>
+            <p class="panel-kicker">Registros ⛪</p>
+            <h2>⛪ Iglesias disponibles</h2>
+            <p class="panel-subcopy">Selecciona una tarjeta para ver su ficha pública.</p>
           </div>
-          <span class="pill">{{ filteredIglesias.length }}</span>
+          <span class="pill">{{ iglesias.length }}</span>
         </div>
-
-        <div class="search-box">
-          <label class="search-field">
-            <span>Buscar</span>
-            <input
-              v-model="searchQuery"
-              type="search"
-              placeholder="Nombre, dirección, horario o ciudad"
-            />
-          </label>
-          <button v-if="searchQuery" class="text-button" type="button" @click="searchQuery = ''">
-            Limpiar
-          </button>
-        </div>
-
-        <p class="status search-summary">{{ visibleResultsLabel }}</p>
 
         <p v-if="loading" class="status">Cargando iglesias desde Firestore...</p>
 
-        <ul v-else-if="filteredIglesias.length" class="church-list">
-          <li v-for="iglesia in filteredIglesias" :key="iglesia.id">
+        <ul v-else-if="iglesias.length" class="church-list">
+          <li v-for="iglesia in iglesias" :key="iglesia.id">
             <div class="church-card" :class="{ active: iglesia.id === selectedId }">
               <button class="church-card-main" type="button" @click="selectChurch(iglesia)">
-                <span class="church-card-badge">
-                  {{ iglesia.id === selectedId ? 'Ficha activa' : 'Disponible' }}
-                </span>
                 <strong>{{ iglesia.name || 'Sin nombre' }}</strong>
                 <span class="church-meta">
                   <b>Dirección</b>
@@ -770,21 +647,17 @@ onUnmounted(() => {
           </li>
         </ul>
 
-        <p v-else-if="searchQuery" class="status empty-state">
-          No hay coincidencias para <strong>{{ searchQuery }}</strong>. Prueba otra palabra o limpia la búsqueda.
-        </p>
-
         <p v-else class="status empty-state">
-          No hay documentos en <strong>iglesias</strong>. Usa el formulario admin para crear el primero.
+          No hay documentos en <strong>iglesias</strong>. Usa el formulario para crear el primero.
         </p>
       </aside>
 
       <section class="panel details-panel">
         <div class="panel-heading">
           <div>
-            <p class="panel-kicker">Vista pública</p>
+            <p class="panel-kicker">Vista pública 🙏</p>
             <h2>{{ selectedChurch?.name || 'Selecciona una iglesia' }}</h2>
-            <p class="panel-subcopy">La ficha prioriza lo necesario para decidir y llegar sin vueltas.</p>
+            <p class="panel-subcopy">Así es como se presenta esta iglesia a tu comunidad.</p>
           </div>
         </div>
 
@@ -792,37 +665,14 @@ onUnmounted(() => {
           <div class="highlight-band">
             <span class="detail-chip">Callao</span>
             <span class="detail-chip">{{ selectedChurch.horario || 'Horario por confirmar' }}</span>
-            <span class="detail-chip subtle-chip">
-              {{ userLocation ? 'Ruta personalizada activa' : 'Mapa listo para abrir' }}
-            </span>
           </div>
-
-          <div class="details-spotlight">
-            <article>
-              <span class="detail-label">Ubicación</span>
-              <p class="detail-copy">{{ selectedChurch.address || 'Sin dirección registrada' }}</p>
-            </article>
-            <article>
-              <span class="detail-label">Horario</span>
-              <p class="detail-copy">{{ selectedChurch.horario || 'Sin horario registrado' }}</p>
-            </article>
-            <article>
-              <span class="detail-label">Cobertura</span>
-              <p class="detail-copy">{{ selectedChurch.city || 'Callao' }}</p>
-            </article>
-          </div>
-
           <div>
             <span class="detail-label">Dirección</span>
             <p class="detail-copy">{{ selectedChurch.address || 'Sin dirección registrada' }}</p>
           </div>
-
           <div v-if="selectedChurchMapUrl" class="map-card">
             <div class="map-card-header">
-              <div>
-                <span class="detail-label">Mapa y ruta</span>
-                <p class="map-caption">Activa tu ubicación para ver una referencia más útil antes de salir.</p>
-              </div>
+              <span class="detail-label">Mapa GPS</span>
               <div class="map-actions">
                 <button
                   class="map-location-button"
@@ -860,9 +710,16 @@ onUnmounted(() => {
               referrerpolicy="no-referrer-when-downgrade"
             ></iframe>
           </div>
-
+          <div>
+            <span class="detail-label">Horario</span>
+            <p class="detail-copy">{{ selectedChurch.horario || 'Sin horario registrado' }}</p>
+          </div>
+          <div>
+            <span class="detail-label">Ciudad</span>
+            <p class="detail-copy">{{ selectedChurch.city || 'Callao' }}</p>
+          </div>
           <p class="status presentation-note">
-            Presentación pública activa. Los cambios guardados desde admin se reflejan aquí de inmediato.
+            Presentación pública activa. Cualquier cambio que guardes desde admin se refleja aquí.
           </p>
         </div>
 
@@ -874,19 +731,19 @@ onUnmounted(() => {
           <div>
             <p class="panel-kicker">Edición admin</p>
             <h2>{{ selectedChurch?.name || 'Actualizar iglesia' }}</h2>
-            <p class="panel-subcopy">Edita la ficha activa con el mismo orden visual que verá el público.</p>
+            <p class="panel-subcopy">Modifica la iglesia seleccionada y publica los cambios.</p>
           </div>
           <span class="pill secure">Privado</span>
         </div>
 
         <form class="form-grid" @submit.prevent="saveChurch">
           <label>
-            <span>Nombre</span>
+            <span>Name</span>
             <input v-model="editForm.name" type="text" placeholder="Parroquia San José" />
           </label>
 
           <label>
-            <span>Dirección</span>
+            <span>Address</span>
             <textarea
               v-model="editForm.address"
               rows="4"
@@ -925,18 +782,18 @@ onUnmounted(() => {
           <div>
             <p class="panel-kicker">Alta admin</p>
             <h2>Nueva iglesia</h2>
-            <p class="panel-subcopy">Crea una ficha completa para que aparezca lista en el directorio.</p>
+            <p class="panel-subcopy">Agrega una nueva ficha al directorio en segundos.</p>
           </div>
         </div>
 
         <form class="form-grid" @submit.prevent="createChurch">
           <label>
-            <span>Nombre</span>
+            <span>Name</span>
             <input v-model="createForm.name" type="text" placeholder="Iglesia Matriz" />
           </label>
 
           <label>
-            <span>Dirección</span>
+            <span>Address</span>
             <textarea
               v-model="createForm.address"
               rows="4"
@@ -958,7 +815,7 @@ onUnmounted(() => {
 
     <section v-if="!isAdmin" class="public-note">
       <p>
-        Modo presentación activo. Solo usuarios autenticados y autorizados pueden crear, editar o borrar.
+        Modo presentación activo. Solo usuarios autenticados pueden crear, editar o borrar.
       </p>
     </section>
 
