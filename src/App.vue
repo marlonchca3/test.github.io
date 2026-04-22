@@ -18,7 +18,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore'
-import { auth, db, hasFirebaseConfig } from './firebase'
+import { adminEmail, auth, db, hasFirebaseConfig } from './firebase'
 
 const iglesias = ref([])
 const selectedId = ref('')
@@ -59,6 +59,7 @@ const loginForm = reactive({
 let unsubscribe = null
 let unsubscribeAuth = null
 const googleProvider = auth ? new GoogleAuthProvider() : null
+const fallbackAdminEmail = 'admin@iglesias.com'
 
 const selectedChurch = computed(() =>
   iglesias.value.find((iglesia) => iglesia.id === selectedId.value) ?? null,
@@ -78,7 +79,12 @@ const selectedChurchMapUrl = computed(() => {
 
   return `https://www.google.com/maps?q=${encodeURIComponent(address)}&z=16&output=embed`
 })
-const isAdmin = computed(() => !!currentUser.value)
+const allowedAdminEmails = computed(() => {
+  const emails = [adminEmail, fallbackAdminEmail]
+
+  return emails.map((email) => normalizeEmail(email)).filter(Boolean)
+})
+const isAdmin = computed(() => isAllowedAdminEmail(currentUser.value?.email))
 const currentUserName = computed(() => currentUser.value?.displayName?.trim() || 'Administrador')
 const currentUserPhoto = computed(() => currentUser.value?.photoURL?.trim() || '')
 const selectedChurchDirectionsUrl = computed(() => {
@@ -112,6 +118,32 @@ const distanceToChurchKm = computed(() => {
   const distance = calculateDistanceKm(userLocation.value, churchLocation.value)
   return `${distance.toFixed(1)} km aprox. desde tu ubicación hasta la iglesia.`
 })
+
+function normalizeEmail(value) {
+  return value?.trim().toLowerCase() || ''
+}
+
+function isAllowedAdminEmail(email) {
+  const normalizedEmail = normalizeEmail(email)
+
+  return Boolean(normalizedEmail) && allowedAdminEmails.value.includes(normalizedEmail)
+}
+
+async function ensureAuthorizedUser(user) {
+  if (!user) {
+    return false
+  }
+
+  if (isAllowedAdminEmail(user.email)) {
+    return true
+  }
+
+  await signOut(auth)
+  errorMessage.value = 'Solo tu cuenta de Google autorizada y admin@iglesias.com pueden editar.'
+  feedback.value = ''
+  adminPanelOpen.value = true
+  return false
+}
 
 function calculateDistanceKm(origin, destination) {
   const earthRadiusKm = 6371
@@ -253,7 +285,12 @@ async function loginWithGoogle() {
   feedback.value = ''
 
   try {
-    await signInWithPopup(auth, googleProvider)
+    const result = await signInWithPopup(auth, googleProvider)
+
+    if (!(await ensureAuthorizedUser(result.user))) {
+      return
+    }
+
     adminPanelOpen.value = false
     feedback.value = 'Sesión de administrador iniciada.'
   } catch (error) {
@@ -279,7 +316,12 @@ async function loginWithEmail() {
   feedback.value = ''
 
   try {
-    await signInWithEmailAndPassword(auth, loginForm.email.trim(), loginForm.password)
+    const result = await signInWithEmailAndPassword(auth, loginForm.email.trim(), loginForm.password)
+
+    if (!(await ensureAuthorizedUser(result.user))) {
+      loginForm.password = ''
+      return
+    }
 
     loginForm.password = ''
     adminPanelOpen.value = false
@@ -386,7 +428,7 @@ async function deleteChurch() {
 
 async function deleteChurchById(churchId) {
   if (!isAdmin.value) {
-    errorMessage.value = 'Solo los usuarios autenticados pueden borrar iglesias.'
+    errorMessage.value = 'Solo los administradores autorizados pueden borrar iglesias.'
     return
   }
 
@@ -430,7 +472,14 @@ onMounted(() => {
   if (!auth) {
     authLoading.value = false
   } else {
-    unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (user && !isAllowedAdminEmail(user.email)) {
+        currentUser.value = null
+        authLoading.value = false
+        await ensureAuthorizedUser(user)
+        return
+      }
+
       currentUser.value = user
       authLoading.value = false
     })
