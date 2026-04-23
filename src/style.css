@@ -251,6 +251,7 @@ h2 {
 
 .list-panel,
 .details-panel,
+.nearby-panel,
 .editor-panel,
 .create-panel {
   min-width: 0;
@@ -562,6 +563,78 @@ h2 {
   border-radius: 16px;
   background: rgba(10, 123, 131, 0.08);
   border: 1px solid rgba(10, 123, 131, 0.14);
+}
+
+.nearby-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.nearest-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(123, 77, 255, 0.2);
+  background: linear-gradient(145deg, rgba(123, 77, 255, 0.08), rgba(255, 255, 255, 0.92));
+}
+
+.nearest-card strong {
+  font-size: 1.1rem;
+}
+
+.nearest-distance {
+  margin: 0;
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.nearest-copy {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.nearby-chips {
+  margin-top: 4px;
+}
+
+.nearby-list {
+  display: grid;
+  gap: 10px;
+}
+
+.nearby-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nearby-item {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text);
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.nearby-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(123, 77, 255, 0.28);
+  box-shadow: 0 12px 24px rgba(61, 38, 111, 0.08);
+}
+
+.nearby-item span,
+.nearby-item small,
+.nearby-empty {
+  color: var(--text-soft);
 }
 
 .form-grid {

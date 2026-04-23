@@ -30,14 +30,17 @@ const authLoading = ref(true)
 const loginLoading = ref(false)
 const locationLoading = ref(false)
 const churchLocationLoading = ref(false)
+const nearbyChurchesLoading = ref(false)
 const feedback = ref('')
 const errorMessage = ref('')
 const locationError = ref('')
 const churchLocationError = ref('')
+const nearbyChurchesError = ref('')
 const adminPanelOpen = ref(false)
 const currentUser = ref(null)
 const userLocation = ref(null)
 const churchLocation = ref(null)
+const churchLocations = ref({})
 
 const editForm = reactive({
   name: '',
@@ -118,6 +121,35 @@ const distanceToChurchKm = computed(() => {
   const distance = calculateDistanceKm(userLocation.value, churchLocation.value)
   return `${distance.toFixed(1)} km aprox. desde tu ubicación hasta la iglesia.`
 })
+const nearbyChurches = computed(() => {
+  if (!userLocation.value) {
+    return []
+  }
+
+  return iglesias.value
+    .map((iglesia) => {
+      const address = iglesia.address?.trim() || ''
+      const coordinates = churchLocations.value[address]
+
+      if (!address || !coordinates) {
+        return null
+      }
+
+      return {
+        ...iglesia,
+        distanceKm: calculateDistanceKm(userLocation.value, coordinates),
+      }
+    })
+    .filter(Boolean)
+    .sort((firstChurch, secondChurch) => firstChurch.distanceKm - secondChurch.distanceKm)
+})
+const nearestChurch = computed(() => nearbyChurches.value[0] ?? null)
+const hasChurchesWithoutCoordinates = computed(() =>
+  iglesias.value.some((iglesia) => {
+    const address = iglesia.address?.trim() || ''
+    return address && !churchLocations.value[address]
+  }),
+)
 
 function normalizeEmail(value) {
   return value?.trim().toLowerCase() || ''
@@ -207,6 +239,79 @@ async function fetchChurchLocation(address) {
   }
 }
 
+async function fetchChurchCoordinates(address) {
+  if (!address) {
+    return null
+  }
+
+  if (churchLocations.value[address]) {
+    return churchLocations.value[address]
+  }
+
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(address)}`,
+    {
+      headers: {
+        Accept: 'application/json',
+      },
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('No se pudo localizar una iglesia.')
+  }
+
+  const [result] = await response.json()
+
+  if (!result) {
+    return null
+  }
+
+  const coordinates = {
+    latitude: Number(result.lat),
+    longitude: Number(result.lon),
+  }
+
+  churchLocations.value = {
+    ...churchLocations.value,
+    [address]: coordinates,
+  }
+
+  return coordinates
+}
+
+async function loadNearbyChurches() {
+  const addresses = [...new Set(iglesias.value.map((iglesia) => iglesia.address?.trim() || '').filter(Boolean))]
+
+  if (!addresses.length) {
+    nearbyChurchesError.value = ''
+    return
+  }
+
+  nearbyChurchesLoading.value = true
+  nearbyChurchesError.value = ''
+
+  try {
+    await Promise.all(addresses.map((address) => fetchChurchCoordinates(address).catch(() => null)))
+
+    if (!Object.keys(churchLocations.value).length) {
+      nearbyChurchesError.value = 'No pude ubicar las direcciones de las iglesias registradas.'
+    }
+  } catch {
+    nearbyChurchesError.value = 'No pude preparar el listado de iglesias cercanas.'
+  } finally {
+    nearbyChurchesLoading.value = false
+  }
+}
+
+function formatDistanceKm(distanceKm) {
+  if (distanceKm < 1) {
+    return `${Math.round(distanceKm * 1000)} m`
+  }
+
+  return `${distanceKm.toFixed(1)} km`
+}
+
 function fillEditForm(iglesia) {
   editForm.name = iglesia?.name ?? ''
   editForm.address = iglesia?.address ?? ''
@@ -266,6 +371,13 @@ watch(
     fetchChurchLocation(address)
   },
   { immediate: true },
+)
+
+watch(
+  () => iglesias.value.map((iglesia) => iglesia.address?.trim() || '').join('|'),
+  () => {
+    loadNearbyChurches()
+  },
 )
 
 function resetCreateForm() {
@@ -740,6 +852,72 @@ onUnmounted(() => {
         </div>
 
         <p v-else class="status">Elige una iglesia para ver sus datos públicos.</p>
+      </section>
+
+      <section class="panel nearby-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Cerca de ti 📍</p>
+            <h2>Qué iglesia tienes cerca</h2>
+            <p class="panel-subcopy">Usa tu GPS para ver la iglesia más cercana y su horario de misa.</p>
+          </div>
+          <button
+            class="map-location-button"
+            type="button"
+            :disabled="locationLoading"
+            @click="requestUserLocation"
+          >
+            {{ locationLoading ? 'Ubicando...' : 'Usar mi GPS' }}
+          </button>
+        </div>
+
+        <div class="nearby-stack">
+          <p class="map-status" :class="{ error: locationError }">
+            {{ locationError || userLocationLabel }}
+          </p>
+          <p v-if="nearbyChurchesLoading" class="map-status">Buscando iglesias cercanas...</p>
+          <p v-else-if="nearbyChurchesError" class="map-status error">
+            {{ nearbyChurchesError }}
+          </p>
+
+          <div v-if="nearestChurch" class="nearest-card">
+            <span class="detail-label">Más cercana ahora</span>
+            <strong>{{ nearestChurch.name || 'Iglesia sin nombre' }}</strong>
+            <p class="nearest-distance">{{ formatDistanceKm(nearestChurch.distanceKm) }} desde tu ubicación</p>
+            <p class="nearest-copy">{{ nearestChurch.address || 'Sin dirección registrada' }}</p>
+            <div class="highlight-band nearby-chips">
+              <span class="detail-chip">Misa: {{ nearestChurch.horario || 'Horario por confirmar' }}</span>
+            </div>
+            <button class="primary-button" type="button" @click="selectChurch(nearestChurch)">
+              Ver esta iglesia
+            </button>
+          </div>
+
+          <div v-if="nearbyChurches.length > 1" class="nearby-list">
+            <div class="nearby-list-heading">
+              <span class="detail-label">También cerca</span>
+            </div>
+
+            <button
+              v-for="iglesia in nearbyChurches.slice(1, 4)"
+              :key="iglesia.id"
+              class="nearby-item"
+              type="button"
+              @click="selectChurch(iglesia)"
+            >
+              <strong>{{ iglesia.name || 'Iglesia sin nombre' }}</strong>
+              <span>{{ formatDistanceKm(iglesia.distanceKm) }}</span>
+              <small>{{ iglesia.horario || 'Horario por confirmar' }}</small>
+            </button>
+          </div>
+
+          <p v-else-if="!userLocation" class="status nearby-empty">
+            Activa tu ubicación para decirte qué iglesia te queda más cerca y a qué hora hay misa.
+          </p>
+          <p v-else-if="!nearbyChurches.length && !nearbyChurchesLoading && !hasChurchesWithoutCoordinates" class="status nearby-empty">
+            Aún no hay iglesias con dirección suficiente para calcular cercanía.
+          </p>
+        </div>
       </section>
 
       <section v-if="isAdmin" class="panel editor-panel">
