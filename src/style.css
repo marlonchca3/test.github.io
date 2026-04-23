@@ -392,6 +392,46 @@ h2 {
   opacity: 0.65;
 }
 
+.church-selector-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.church-select-field {
+  display: grid;
+  gap: 8px;
+}
+
+.church-select-field span {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.church-select-field select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.74);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.church-select-field select:focus {
+  outline: none;
+  border-color: rgba(10, 123, 131, 0.6);
+  box-shadow: 0 0 0 4px rgba(10, 123, 131, 0.1);
+}
+
+.church-selection-card {
+  padding: 16px;
+  border: 1px solid rgba(10, 123, 131, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(10, 123, 131, 0.08), rgba(255, 255, 255, 0.82));
+  display: grid;
+  gap: 12px;
+}
+
 .details-stack {
   display: grid;
   gap: 18px;

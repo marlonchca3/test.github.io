@@ -220,6 +220,17 @@ function selectChurch(iglesia) {
   errorMessage.value = ''
 }
 
+function syncSelectedChurch() {
+  const iglesia = iglesias.value.find((item) => item.id === selectedId.value)
+
+  if (iglesia) {
+    selectChurch(iglesia)
+    return
+  }
+
+  fillEditForm(null)
+}
+
 function requestUserLocation() {
   if (!navigator.geolocation) {
     locationError.value = 'Tu navegador no permite obtener ubicación.'
@@ -612,40 +623,45 @@ onUnmounted(() => {
           <div>
             <p class="panel-kicker">Registros ⛪</p>
             <h2>⛪ Iglesias disponibles</h2>
-            <p class="panel-subcopy">Selecciona una tarjeta para ver su ficha pública.</p>
+            <p class="panel-subcopy">Selecciona una iglesia en el desplegable para ver su ficha pública.</p>
           </div>
           <span class="pill">{{ iglesias.length }}</span>
         </div>
 
         <p v-if="loading" class="status">Cargando iglesias desde Firestore...</p>
 
-        <ul v-else-if="iglesias.length" class="church-list">
-          <li v-for="iglesia in iglesias" :key="iglesia.id">
-            <div class="church-card" :class="{ active: iglesia.id === selectedId }">
-              <button class="church-card-main" type="button" @click="selectChurch(iglesia)">
-                <strong>{{ iglesia.name || 'Sin nombre' }}</strong>
-                <span class="church-meta">
-                  <b>Dirección</b>
-                  {{ iglesia.address || 'Sin dirección' }}
-                </span>
-                <span class="church-meta">
-                  <b>Horario</b>
-                  {{ iglesia.horario || 'Sin horario' }}
-                </span>
-              </button>
+        <div v-else-if="iglesias.length" class="church-selector-stack">
+          <label class="church-select-field">
+            <span>Iglesias</span>
+            <select v-model="selectedId" @change="syncSelectedChurch">
+              <option v-for="iglesia in iglesias" :key="iglesia.id" :value="iglesia.id">
+                {{ iglesia.name || 'Sin nombre' }}
+              </option>
+            </select>
+          </label>
 
-              <button
-                v-if="isAdmin"
-                class="inline-delete-button"
-                type="button"
-                :disabled="deleting"
-                @click="deleteChurchById(iglesia.id)"
-              >
-                {{ deleting && iglesia.id === selectedId ? 'Borrando...' : 'Eliminar' }}
-              </button>
-            </div>
-          </li>
-        </ul>
+          <div v-if="selectedChurch" class="church-selection-card">
+            <strong>{{ selectedChurch.name || 'Sin nombre' }}</strong>
+            <span class="church-meta">
+              <b>Dirección</b>
+              {{ selectedChurch.address || 'Sin dirección' }}
+            </span>
+            <span class="church-meta">
+              <b>Horario</b>
+              {{ selectedChurch.horario || 'Sin horario' }}
+            </span>
+
+            <button
+              v-if="isAdmin"
+              class="inline-delete-button"
+              type="button"
+              :disabled="deleting"
+              @click="deleteChurchById(selectedChurch.id)"
+            >
+              {{ deleting ? 'Borrando...' : 'Eliminar' }}
+            </button>
+          </div>
+        </div>
 
         <p v-else class="status empty-state">
           No hay documentos en <strong>iglesias</strong>. Usa el formulario para crear el primero.
